@@ -17,6 +17,7 @@ const LiveStudio: React.FC = () => {
     const [isPepTalkLoading, setIsPepTalkLoading] = useState(false);
     const [pepTalk, setPepTalk] = useState('');
     const [isScriptSaved, setIsScriptSaved] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     
     const [shoppingForm, setShoppingForm] = useState({
         goal: LIVE_OPTIONS.goal[0],
@@ -102,43 +103,50 @@ const LiveStudio: React.FC = () => {
     const handleGenerateScript = async () => {
         setIsLoading(true);
         setTimeline([]);
-        let specificFormData = {};
-        switch (activeTab) {
-            case 'shopping': specificFormData = shoppingForm; break;
-            case 'gift': specificFormData = giftForm; break;
-            case 'qa': specificFormData = qaForm; break;
-        }
-        
-        const formData = {
-            mode: activeTab,
-            scriptMode,
-            mentalNote: `Host feels ${mentalForm.mood} because: ${mentalForm.reason}`,
-            ...specificFormData,
-        };
-        const resultJson = await generateLiveScript(formData);
+        setErrorMessage('');
         try {
+            let specificFormData = {};
+            switch (activeTab) {
+                case 'shopping': specificFormData = shoppingForm; break;
+                case 'gift': specificFormData = giftForm; break;
+                case 'qa': specificFormData = qaForm; break;
+            }
+            
+            const formData = {
+                mode: activeTab,
+                scriptMode,
+                mentalNote: `Host feels ${mentalForm.mood} because: ${mentalForm.reason}`,
+                ...specificFormData,
+            };
+            const resultJson = await generateLiveScript(formData);
             const result = JSON.parse(resultJson);
             if (result.timeline) {
                 setTimeline(result.timeline);
                 setView('output');
             } else {
-                console.error("Error in timeline response:", result.error || "Unknown error");
-                alert(`Gagal membuat skrip: ${result.error || "Format respons tidak valid."}`);
+                setErrorMessage(`Gagal membuat skrip: ${result.error || "Format respons tidak valid."}`);
             }
         } catch(e) {
             console.error("Failed to parse timeline JSON:", e);
-            alert("Gagal memproses respons dari AI. Coba lagi.");
+            setErrorMessage("Gagal memproses respons dari AI. Silakan coba lagi.");
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const handlePepTalk = async () => {
         if (!mentalForm.reason.trim()) return;
         setIsPepTalkLoading(true);
         setPepTalk('');
-        const talk = await generatePepTalk(mentalForm.mood, mentalForm.reason);
-        setPepTalk(talk);
-        setIsPepTalkLoading(false);
+        try {
+            const talk = await generatePepTalk(mentalForm.mood, mentalForm.reason);
+            setPepTalk(talk);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setPepTalk(`Error: ${msg}`);
+        } finally {
+            setIsPepTalkLoading(false);
+        }
     };
     
     const handleSaveScript = () => {
@@ -221,7 +229,7 @@ const LiveStudio: React.FC = () => {
                                 <h3 className="flex items-center text-xl font-semibold gap-3 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg><span>Daftar Produk (Seret untuk Mengurutkan)</span></h3>
                                 <div id="live-product-list" className="space-y-4">{shoppingForm.products.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}</div>
                                 <button id="live-add-product-btn" onClick={handleAddProduct} className="w-full text-sm font-semibold text-orange-400 border-2 border-dashed border-slate-600 hover:border-orange-500 hover:text-orange-500 rounded-lg py-3 transition-colors">+ Tambah Produk Lain</button>
-                                <div className="text-center mt-2"><span className="text-xs text-slate-400">atau </span><button id="live-bulk-upload-btn" type="button" className="text-xs font-semibold text-orange-400 hover:text-orange-300 hover:underline transition-colors">Unggah Massal</button></div>
+                                <div className="text-center mt-2"><span className="text-xs text-slate-400">atau </span><button id="live-bulk-upload-btn" type="button" onClick={() => { /* Fitur upload massal akan ditambahkan di versi mendatang */ }} className="text-xs font-semibold text-orange-400 hover:text-orange-300 hover:underline transition-colors" title="Fitur ini akan segera hadir">Unggah Massal (Segera Hadir)</button></div>
                             </div>
                         </div>
 
@@ -276,6 +284,7 @@ const LiveStudio: React.FC = () => {
                             {isLoading && <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
                             <span>{isLoading ? 'Menghasilkan...' : 'Hasilkan Skrip Live'}</span>
                           </button>
+                          {errorMessage && <p className="text-sm text-red-400 text-center mt-3">{errorMessage}</p>}
                         </div>
                     </div>
                 </div>
@@ -288,7 +297,14 @@ const LiveStudio: React.FC = () => {
                                 {isScriptSaved ? <><svg className="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>Tersimpan!</> : <><svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h8l2 2v13.5a1.5 1.5 0 01-3 0V6H5a1 1 0 011-1z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Simpan Skrip</>}
                             </button>
                         </div>
-                        <button id="launch-teleprompter-btn" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/20 hover:from-orange-600 hover:to-amber-600 transition-all"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V5a1 1 0 00-1.447-.894l-4 2A1 1 0 0011 7v10zM6 17a1 1 0 001.447.894l4-2A1 1 0 0012 15V5a1 1 0 00-1.447-.894l-4 2A1 1 0 006 7v10z" /></svg>Luncurkan Teleprompter</button>
+                        <button id="launch-teleprompter-btn" onClick={() => {
+                            const scriptText = timeline.map(t => `[${t.time}] ${t.title}\n${t.script}`).join('\n\n');
+                            const teleWindow = window.open('', '_blank');
+                            if (teleWindow) {
+                                teleWindow.document.write(`<html><head><title>Teleprompter - PRIME</title><style>body{background:#000;color:#fff;font-family:'Inter',sans-serif;font-size:2.5em;line-height:1.8;padding:2em;white-space:pre-wrap;}</style></head><body>${scriptText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</body></html>`);
+                                teleWindow.document.close();
+                            }
+                        }} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/20 hover:from-orange-600 hover:to-amber-600 transition-all"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V5a1 1 0 00-1.447-.894l-4 2A1 1 0 0011 7v10zM6 17a1 1 0 001.447.894l4-2A1 1 0 0012 15V5a1 1 0 00-1.447-.894l-4 2A1 1 0 006 7v10z" /></svg>Luncurkan Teleprompter</button>
                     </div>
                      <div id="live-timeline-output" className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-xl shadow-2xl shadow-black/30">
                         {isLoading && <ScriptSkeleton />}

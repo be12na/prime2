@@ -17,6 +17,7 @@ const PostStudio: React.FC = () => {
     const [parsedOutput, setParsedOutput] = useState<ParsedOutput[]>([]);
     const [useTrends, setUseTrends] = useState(false);
     const [savedStatuses, setSavedStatuses] = useState<{ [key: string]: boolean }>({});
+    const [errorMessage, setErrorMessage] = useState('');
 
 
     const [formState, setFormState] = useState({
@@ -48,14 +49,30 @@ const PostStudio: React.FC = () => {
     const handleGenerate = async () => {
         setIsLoading(true);
         setParsedOutput([]);
-        const dataToSend = { type: activeTab, ...formState[activeTab] };
-        const result = await generateSocialPost(dataToSend, useTrends);
-        setParsedOutput(parseMarkdownOutput(result));
-        setIsLoading(false);
+        setErrorMessage('');
+        try {
+            const dataToSend = { type: activeTab, ...formState[activeTab] };
+            const result = await generateSocialPost(dataToSend, useTrends);
+            if (result.startsWith('Error:')) {
+                setErrorMessage(result);
+            } else {
+                const parsed = parseMarkdownOutput(result);
+                if (parsed.length === 0) {
+                    setErrorMessage('AI tidak menghasilkan output yang valid. Silakan coba lagi.');
+                } else {
+                    setParsedOutput(parsed);
+                }
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setErrorMessage(`Error: ${msg}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
+        navigator.clipboard.writeText(text).catch(() => {});
     };
 
     const handleSave = (title: string, content: string) => {
@@ -191,7 +208,7 @@ const PostStudio: React.FC = () => {
                   ))}
                   {!isLoading && parsedOutput.length === 0 && (
                       <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                          <p>Paket konten Anda (ide, skrip, caption) akan muncul di sini.</p>
+                          {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Paket konten Anda (ide, skrip, caption) akan muncul di sini.</p>}
                       </div>
                   )}
               </div>

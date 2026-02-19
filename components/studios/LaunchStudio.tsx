@@ -14,6 +14,7 @@ const LaunchStudio: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [parsedOutput, setParsedOutput] = useState<ParsedOutput[]>([]);
     const [savedStatuses, setSavedStatuses] = useState<{ [key: string]: boolean }>({});
+    const [errorMessage, setErrorMessage] = useState('');
 
 
     const [formState, setFormState] = useState({
@@ -73,13 +74,29 @@ const LaunchStudio: React.FC = () => {
     const handleGenerate = async () => {
         setIsLoading(true);
         setParsedOutput([]);
-        const result = await generateLaunchContent(formState, activeTab);
-        setParsedOutput(parseMarkdownOutput(result));
-        setIsLoading(false);
+        setErrorMessage('');
+        try {
+            const result = await generateLaunchContent(formState, activeTab);
+            if (result.startsWith('Error:')) {
+                setErrorMessage(result);
+            } else {
+                const parsed = parseMarkdownOutput(result);
+                if (parsed.length === 0) {
+                    setErrorMessage('AI tidak menghasilkan output yang valid. Silakan coba lagi.');
+                } else {
+                    setParsedOutput(parsed);
+                }
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setErrorMessage(`Error: ${msg}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
+        navigator.clipboard.writeText(text).catch(() => {});
     };
     
     const handleSave = (title: string, content: string) => {
@@ -271,7 +288,7 @@ const LaunchStudio: React.FC = () => {
                     ))}
                    {!isLoading && parsedOutput.length === 0 && (
                         <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                            <p>Hasil copywriting akan muncul di sini setelah Anda menekan tombol generate.</p>
+                            {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Hasil copywriting akan muncul di sini setelah Anda menekan tombol generate.</p>}
                         </div>
                    )}
                 </div>

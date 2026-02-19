@@ -22,7 +22,12 @@ const GuideStudio: React.FC = () => {
         const savedApiKey = sessionStorage.getItem('geminiApiKey');
 
         if (savedProfile) {
-            setBrandProfile(JSON.parse(savedProfile));
+            try {
+                setBrandProfile(JSON.parse(savedProfile));
+            } catch (e) {
+                console.error('Failed to parse saved brand profile', e);
+                localStorage.removeItem('brandProfile');
+            }
         }
         if (savedRole) {
             setActiveRole(savedRole as BrandRole);

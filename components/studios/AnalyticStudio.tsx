@@ -10,6 +10,7 @@ interface ParsedOutput {
 const AnalyticStudio: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [parsedOutput, setParsedOutput] = useState<ParsedOutput[]>([]);
+    const [errorMessage, setErrorMessage] = useState('');
     const [formState, setFormState] = useState({
         transcript: '',
         views: '',
@@ -51,9 +52,25 @@ const AnalyticStudio: React.FC = () => {
     const handleGenerate = async () => {
         setIsLoading(true);
         setParsedOutput([]);
-        const result = await analyzePerformance(formState);
-        setParsedOutput(parseMarkdownOutput(result));
-        setIsLoading(false);
+        setErrorMessage('');
+        try {
+            const result = await analyzePerformance(formState);
+            if (result.startsWith('Error:')) {
+                setErrorMessage(result);
+            } else {
+                const parsed = parseMarkdownOutput(result);
+                if (parsed.length === 0) {
+                    setErrorMessage('AI tidak menghasilkan output yang valid. Silakan coba lagi.');
+                } else {
+                    setParsedOutput(parsed);
+                }
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setErrorMessage(`Error: ${msg}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     // Fix: Defined props interface and used React.FC to correctly type the component for use with a 'key' prop in a list.
@@ -62,8 +79,13 @@ const AnalyticStudio: React.FC = () => {
         content: string;
     }
      const OutputCard: React.FC<OutputCardProps> = ({ title, content }) => (
-        <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700">
+        <div className="relative bg-slate-900/50 p-6 rounded-xl border border-slate-700">
             <h4 className="font-semibold text-lg text-orange-400 mb-3">{title}</h4>
+            <div className="absolute top-4 right-4">
+                <button onClick={() => navigator.clipboard.writeText(content).catch(() => {})} title="Salin" className="p-2 text-slate-400 hover:text-white bg-slate-700/50 rounded-md transition-colors">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+            </div>
             <div className="prose prose-sm prose-invert text-slate-300 max-w-none prose-headings:text-slate-200">
                 <Markdown>{content}</Markdown>
             </div>
@@ -128,7 +150,7 @@ const AnalyticStudio: React.FC = () => {
                 ))}
                 {!isLoading && parsedOutput.length === 0 && (
                     <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                        <p>Hasil analisis dan rekomendasi akan muncul di sini.</p>
+                        {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Hasil analisis dan rekomendasi akan muncul di sini.</p>}
                     </div>
                 )}
             </div>

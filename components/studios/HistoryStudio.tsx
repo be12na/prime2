@@ -16,7 +16,7 @@ const HistoryStudio: React.FC = () => {
     };
 
     const handleCopy = (id: number, content: string) => {
-        navigator.clipboard.writeText(content);
+        navigator.clipboard.writeText(content).catch(() => {});
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
     };

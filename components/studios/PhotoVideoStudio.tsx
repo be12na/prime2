@@ -135,6 +135,7 @@ const PhotoVideoStudio: React.FC = () => {
     const [generatedImage, setGeneratedImage] = useState('');
     const [imageGenStatus, setImageGenStatus] = useState('');
     const [savedPrompts, setSavedPrompts] = useState<{ [key: string]: boolean }>({});
+    const [copiedType, setCopiedType] = useState<string | null>(null);
 
 
     const isModelVisible = useMemo(() => activeTab === 'manual' ? formState.concept === 'produk-dengan-model' : aiFormState.concept === 'produk-dengan-model', [activeTab, formState.concept, aiFormState.concept]);
@@ -191,12 +192,18 @@ const PhotoVideoStudio: React.FC = () => {
         setVideoPrompt('');
         setGeneratedImage('');
         setImageGenStatus('');
-
-        const dataToSend = activeTab === 'manual' ? formState : aiFormState;
-        const result = await generatePhotoVideoPrompt(dataToSend, activeTab);
-        setPhotoPrompt(result.photo);
-        setVideoPrompt(result.video);
-        setIsLoading(false);
+        try {
+            const dataToSend = activeTab === 'manual' ? formState : aiFormState;
+            const result = await generatePhotoVideoPrompt(dataToSend, activeTab);
+            setPhotoPrompt(result.photo);
+            setVideoPrompt(result.video);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setPhotoPrompt(`Error: ${msg}`);
+            setVideoPrompt(`Error: ${msg}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleGenerateImage = async () => {
@@ -204,27 +211,33 @@ const PhotoVideoStudio: React.FC = () => {
         setIsImageLoading(true);
         setGeneratedImage('');
         setImageGenStatus('AI sedang meracik prompt dan membuat gambar...');
-        const aspectRatio = activeTab === 'manual' ? formState.output.aspectRatio : aiFormState.output.aspectRatio;
-        
-        let promptForImage = photoPrompt;
-        let imageBase64 = '';
-        let mimeType = '';
+        try {
+            const aspectRatio = activeTab === 'manual' ? formState.output.aspectRatio : aiFormState.output.aspectRatio;
+            
+            let promptForImage = photoPrompt;
+            let imageBase64 = '';
+            let mimeType = '';
 
-        if(activeTab === 'ai' && aiFormState.imageBase64) {
-            promptForImage = `Using the provided image as a base, edit it to match this concept: ${photoPrompt}`;
-            imageBase64 = aiFormState.imageBase64;
-            mimeType = aiFormState.mimeType;
-        }
+            if(activeTab === 'ai' && aiFormState.imageBase64) {
+                promptForImage = `Using the provided image as a base, edit it to match this concept: ${photoPrompt}`;
+                imageBase64 = aiFormState.imageBase64;
+                mimeType = aiFormState.mimeType;
+            }
 
-        const result = await generateImageWithPrompt(promptForImage, aspectRatio, imageBase64, mimeType);
-        
-        if (result.startsWith('Error:')) {
-            setImageGenStatus(result);
-        } else {
-            setGeneratedImage(`data:image/png;base64,${result}`);
-            setImageGenStatus('Gambar berhasil dibuat!');
+            const result = await generateImageWithPrompt(promptForImage, aspectRatio, imageBase64, mimeType);
+            
+            if (result.startsWith('Error:')) {
+                setImageGenStatus(result);
+            } else {
+                setGeneratedImage(`data:image/png;base64,${result}`);
+                setImageGenStatus('Gambar berhasil dibuat!');
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+            setImageGenStatus(`Error: ${msg}`);
+        } finally {
+            setIsImageLoading(false);
         }
-        setIsImageLoading(false);
     };
     
     const handleAiImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,17 +253,9 @@ const PhotoVideoStudio: React.FC = () => {
     };
     
     const copyToClipboard = (text: string, type: 'image' | 'video') => {
-        navigator.clipboard.writeText(text);
-        const icon = document.getElementById(`copy-icon-${type}`);
-        const check = document.getElementById(`check-icon-${type}`);
-        if(icon && check) {
-            icon.classList.add('hidden');
-            check.classList.remove('hidden');
-            setTimeout(() => {
-                icon.classList.remove('hidden');
-                check.classList.add('hidden');
-            }, 2000);
-        }
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopiedType(type);
+        setTimeout(() => setCopiedType(null), 2000);
     };
     
     const handleSavePrompt = (type: 'Foto' | 'Video', content: string) => {
@@ -520,8 +525,7 @@ const PhotoVideoStudio: React.FC = () => {
                         {savedPrompts['Foto'] ? <svg className="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h8l2 2v13.5a1.5 1.5 0 01-3 0V6H5a1 1 0 011-1z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                     </button>
                     <button onClick={() => copyToClipboard(photoPrompt, 'image')} title="Salin Prompt" className="p-2 text-slate-400 hover:text-orange-400 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-all duration-200" disabled={!photoPrompt}>
-                        <svg id="copy-icon-image" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        <svg id="check-icon-image" className="w-5 h-5 text-green-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                        {copiedType === 'image' ? <svg className="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                     </button>
                 </div>
                 <div className="flex-grow flex items-center justify-center">
@@ -537,8 +541,7 @@ const PhotoVideoStudio: React.FC = () => {
                         {savedPrompts['Video'] ? <svg className="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h8l2 2v13.5a1.5 1.5 0 01-3 0V6H5a1 1 0 011-1z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                     </button>
                     <button onClick={() => copyToClipboard(videoPrompt, 'video')} title="Salin Prompt" className="p-2 text-slate-400 hover:text-orange-400 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-all duration-200" disabled={!videoPrompt}>
-                       <svg id="copy-icon-video" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                       <svg id="check-icon-video" className="w-5 h-5 text-green-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                       {copiedType === 'video' ? <svg className="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                     </button>
                 </div>
                 <div className="flex-grow flex items-center justify-center">
