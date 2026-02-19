@@ -17,7 +17,11 @@ const CORRECT_PASSWORD = 'Prime@2026!';
 
 const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => sessionStorage.getItem('isVerified') === 'true');
-    const [activeStudio, setActiveStudio] = useState<Studio>('photo-video');
+    const [activeStudio, setActiveStudio] = useState<Studio>(() => {
+        // First visit: direct to Guide studio if no API key set
+        const hasApiKey = sessionStorage.getItem('geminiApiKey');
+        return hasApiKey ? 'photo-video' : 'guide';
+    });
     const [showFullScreenModal, setShowFullScreenModal] = useState(false);
 
     useEffect(() => {
