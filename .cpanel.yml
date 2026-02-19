@@ -8,7 +8,7 @@
 # Cek di cPanel > Domains untuk melihat document root yang benar.
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/cepdigit/prime2.cepat.digital
+    - export DEPLOYPATH=/home/egxvvhji/prime2.cepat.digital
     - /bin/mkdir -p $DEPLOYPATH/assets
     - /bin/cp -f dist/index.html $DEPLOYPATH/index.html
     - /bin/cp -f dist/.htaccess $DEPLOYPATH/.htaccess
