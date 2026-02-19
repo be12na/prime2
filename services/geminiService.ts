@@ -95,8 +95,25 @@ export const generatePhotoVideoPrompt = async (formData: any, activeMode: 'manua
     if (activeMode === 'ai' && promptData.imageBase64) {
         // Ganti data base64 yang besar dengan placeholder untuk menghindari error token limit.
         // Data gambar asli akan digunakan nanti saat memanggil `generateImageWithPrompt`.
-        promptData.imageBase64 = `[Gambar telah diunggah oleh pengguna, ukuran: ${Math.round(promptData.imageBase64.length * 3/4 / 1024)} KB]`;
+        promptData.imageBase64 = `[Gambar produk telah diunggah oleh pengguna, ukuran: ${Math.round(promptData.imageBase64.length * 3/4 / 1024)} KB]`;
         delete promptData.mimeType;
+    }
+
+    if (activeMode === 'manual') {
+        if (promptData.modelImageBase64) {
+            promptData.modelImageBase64 = `[Foto referensi MODEL telah diunggah oleh pengguna, ukuran: ${Math.round(promptData.modelImageBase64.length * 3/4 / 1024)} KB. Sesuaikan deskripsi model dalam prompt dengan referensi gambar ini.]`;
+            delete promptData.modelImageMimeType;
+        } else {
+            delete promptData.modelImageBase64;
+            delete promptData.modelImageMimeType;
+        }
+        if (promptData.productImageBase64) {
+            promptData.productImageBase64 = `[Foto PRODUK telah diunggah oleh pengguna, ukuran: ${Math.round(promptData.productImageBase64.length * 3/4 / 1024)} KB. Gunakan foto ini sebagai referensi utama tampilan produk.]`;
+            delete promptData.productImageMimeType;
+        } else {
+            delete promptData.productImageBase64;
+            delete promptData.productImageMimeType;
+        }
     }
     
     const prompt = `

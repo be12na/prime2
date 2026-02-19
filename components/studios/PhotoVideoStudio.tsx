@@ -137,6 +137,10 @@ const PhotoVideoStudio: React.FC = () => {
     const [savedPrompts, setSavedPrompts] = useState<{ [key: string]: boolean }>({});
     const [copiedType, setCopiedType] = useState<string | null>(null);
 
+    // Manual mode image uploads
+    const [manualModelImage, setManualModelImage] = useState<{ base64: string; mimeType: string; name: string } | null>(null);
+    const [manualProductImage, setManualProductImage] = useState<{ base64: string; mimeType: string; name: string } | null>(null);
+
 
     const isModelVisible = useMemo(() => activeTab === 'manual' ? formState.concept === 'produk-dengan-model' : aiFormState.concept === 'produk-dengan-model', [activeTab, formState.concept, aiFormState.concept]);
     const isStillLifeControlsVisible = useMemo(() => activeTab === 'manual' ? formState.concept !== 'produk-dengan-model' : aiFormState.concept !== 'produk-dengan-model', [activeTab, formState.concept, aiFormState.concept]);
@@ -193,7 +197,9 @@ const PhotoVideoStudio: React.FC = () => {
         setGeneratedImage('');
         setImageGenStatus('');
         try {
-            const dataToSend = activeTab === 'manual' ? formState : aiFormState;
+            const dataToSend = activeTab === 'manual' 
+                ? { ...formState, modelImageBase64: manualModelImage?.base64 || '', modelImageMimeType: manualModelImage?.mimeType || '', productImageBase64: manualProductImage?.base64 || '', productImageMimeType: manualProductImage?.mimeType || '' }
+                : aiFormState;
             const result = await generatePhotoVideoPrompt(dataToSend, activeTab);
             setPhotoPrompt(result.photo);
             setVideoPrompt(result.video);
@@ -222,6 +228,14 @@ const PhotoVideoStudio: React.FC = () => {
                 promptForImage = `Using the provided image as a base, edit it to match this concept: ${photoPrompt}`;
                 imageBase64 = aiFormState.imageBase64;
                 mimeType = aiFormState.mimeType;
+            } else if (activeTab === 'manual' && manualProductImage) {
+                promptForImage = `Using the provided product image as a base, edit it to match this concept: ${photoPrompt}`;
+                imageBase64 = manualProductImage.base64;
+                mimeType = manualProductImage.mimeType;
+            } else if (activeTab === 'manual' && manualModelImage) {
+                promptForImage = `Using the provided model reference image, create an image matching this concept: ${photoPrompt}`;
+                imageBase64 = manualModelImage.base64;
+                mimeType = manualModelImage.mimeType;
             }
 
             const result = await generateImageWithPrompt(promptForImage, aspectRatio, imageBase64, mimeType);
@@ -247,6 +261,20 @@ const PhotoVideoStudio: React.FC = () => {
             reader.onloadend = () => {
                 const base64String = reader.result?.toString().split(',')[1] || '';
                 setAiFormState(prev => ({ ...prev, imageBase64: base64String, mimeType: file.type }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleManualImageUpload = (type: 'model' | 'product') => (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result?.toString().split(',')[1] || '';
+                const imageData = { base64: base64String, mimeType: file.type, name: file.name };
+                if (type === 'model') setManualModelImage(imageData);
+                else setManualProductImage(imageData);
             };
             reader.readAsDataURL(file);
         }
@@ -416,6 +444,52 @@ const PhotoVideoStudio: React.FC = () => {
                         {OPTIONS.concept.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
                 </div>
+
+                {/* Upload Produk */}
+                <div className="space-y-4 pt-8 border-t border-slate-700">
+                    <h3 className="flex items-center text-lg font-semibold gap-3 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        <span>Upload Produk</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">Unggah foto produk sebagai referensi untuk AI. (Opsional)</p>
+                    {manualProductImage && (
+                        <div className="relative w-full h-40 bg-slate-700/50 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-600">
+                            <img src={`data:${manualProductImage.mimeType};base64,${manualProductImage.base64}`} alt="Preview produk" className="max-h-full max-w-full object-contain rounded" />
+                            <button onClick={() => setManualProductImage(null)} className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-500 rounded-full text-white transition-colors" title="Hapus gambar">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    )}
+                    <label htmlFor="manual-product-upload" className="cursor-pointer w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-orange-400 bg-slate-700/50 hover:bg-slate-700 rounded-md transition-colors border border-dashed border-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        {manualProductImage ? `Ganti: ${manualProductImage.name}` : 'Pilih Foto Produk...'}
+                    </label>
+                    <input type="file" id="manual-product-upload" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleManualImageUpload('product')} />
+                </div>
+
+                {/* Upload Model - only when concept requires model */}
+                {isModelVisible && (
+                    <div className="space-y-4 pt-8 border-t border-slate-700">
+                        <h3 className="flex items-center text-lg font-semibold gap-3 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            <span>Upload Model</span>
+                        </h3>
+                        <p className="text-xs text-slate-500">Unggah foto referensi model/talent. AI akan menyesuaikan prompt dengan referensi ini. (Opsional)</p>
+                        {manualModelImage && (
+                            <div className="relative w-full h-40 bg-slate-700/50 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-600">
+                                <img src={`data:${manualModelImage.mimeType};base64,${manualModelImage.base64}`} alt="Preview model" className="max-h-full max-w-full object-contain rounded" />
+                                <button onClick={() => setManualModelImage(null)} className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-500 rounded-full text-white transition-colors" title="Hapus gambar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        )}
+                        <label htmlFor="manual-model-upload" className="cursor-pointer w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-orange-400 bg-slate-700/50 hover:bg-slate-700 rounded-md transition-colors border border-dashed border-slate-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            {manualModelImage ? `Ganti: ${manualModelImage.name}` : 'Pilih Foto Referensi Model...'}
+                        </label>
+                        <input type="file" id="manual-model-upload" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleManualImageUpload('model')} />
+                    </div>
+                )}
 
                 {isModelVisible && (
                     <div id="model-controls" className="collapsible">
