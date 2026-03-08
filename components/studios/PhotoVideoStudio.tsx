@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 // Fix: Corrected typo from PHOTO_VIDEO_MANual_OPTIONS to PHOTO_VIDEO_MANUAL_OPTIONS
 import { PHOTO_VIDEO_MANUAL_OPTIONS as OPTIONS } from '../../constants.ts';
-import { generatePhotoVideoPrompt, generateImageWithPrompt } from '../../services/geminiService.ts';
+import { generatePhotoVideoPrompt } from '../../services/geminiService.ts';
 import { savePrompt } from '../../services/promptHistoryService.ts';
 
 type FormState = {
@@ -132,8 +132,6 @@ const PhotoVideoStudio: React.FC = () => {
     
     const [photoPrompt, setPhotoPrompt] = useState('');
     const [videoPrompt, setVideoPrompt] = useState('');
-    const [generatedImage, setGeneratedImage] = useState('');
-    const [imageGenStatus, setImageGenStatus] = useState('');
     const [savedPrompts, setSavedPrompts] = useState<{ [key: string]: boolean }>({});
     const [copiedType, setCopiedType] = useState<string | null>(null);
 
@@ -212,47 +210,7 @@ const PhotoVideoStudio: React.FC = () => {
         }
     };
 
-    const handleGenerateImage = async () => {
-        if (!photoPrompt) return;
-        setIsImageLoading(true);
-        setGeneratedImage('');
-        setImageGenStatus('AI sedang meracik prompt dan membuat gambar...');
-        try {
-            const aspectRatio = activeTab === 'manual' ? formState.output.aspectRatio : aiFormState.output.aspectRatio;
-            
-            let promptForImage = photoPrompt;
-            let imageBase64 = '';
-            let mimeType = '';
 
-            if(activeTab === 'ai' && aiFormState.imageBase64) {
-                promptForImage = `Using the provided image as a base, edit it to match this concept: ${photoPrompt}`;
-                imageBase64 = aiFormState.imageBase64;
-                mimeType = aiFormState.mimeType;
-            } else if (activeTab === 'manual' && manualProductImage) {
-                promptForImage = `Using the provided product image as a base, edit it to match this concept: ${photoPrompt}`;
-                imageBase64 = manualProductImage.base64;
-                mimeType = manualProductImage.mimeType;
-            } else if (activeTab === 'manual' && manualModelImage) {
-                promptForImage = `Using the provided model reference image, create an image matching this concept: ${photoPrompt}`;
-                imageBase64 = manualModelImage.base64;
-                mimeType = manualModelImage.mimeType;
-            }
-
-            const result = await generateImageWithPrompt(promptForImage, aspectRatio, imageBase64, mimeType);
-            
-            if (result.startsWith('Error:')) {
-                setImageGenStatus(result);
-            } else {
-                setGeneratedImage(`data:image/png;base64,${result}`);
-                setImageGenStatus('Gambar berhasil dibuat!');
-            }
-        } catch (error) {
-            const msg = error instanceof Error ? error.message : 'Terjadi kesalahan.';
-            setImageGenStatus(`Error: ${msg}`);
-        } finally {
-            setIsImageLoading(false);
-        }
-    };
     
     const handleAiImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -575,20 +533,48 @@ const PhotoVideoStudio: React.FC = () => {
           </div>
           
           <div className="space-y-8">
-            <div className={`${photoPrompt ? '' : 'hidden'} relative bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-xl p-4 sm:p-6 shadow-2xl shadow-black/30 min-h-[300px] flex flex-col`}>
-                <h3 className="text-lg font-semibold text-slate-100 mb-4">Gambar Hasil AI</h3>
-                <div className="flex-grow flex items-center justify-center">
-                    {!generatedImage && !isImageLoading && (
-                        <div className="text-center p-4">
-                            <button onClick={handleGenerateImage} disabled={isImageLoading || !photoPrompt} className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-orange-500 transition-all duration-300 disabled:from-slate-600 disabled:to-slate-600 disabled:shadow-none disabled:cursor-not-allowed">
-                                {isImageLoading && <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                                <span>{isImageLoading ? 'Membuat Gambar...' : 'Hasilkan Gambar AI'}</span>
-                            </button>
-                            <p className="text-sm text-slate-400 mt-3 max-w-md mx-auto">{imageGenStatus}</p>
+            {/* New Instructions Block */}
+            <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-xl p-6 shadow-2xl shadow-black/30">
+                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400 mb-6 flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Instruksi Pembuatan Gambar
+                </h3>
+                <div className="space-y-4">
+                    <div className="flex items-start gap-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-orange-500/30 transition-colors">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-orange-500/20">
+                            1
                         </div>
-                    )}
-                    {isImageLoading && !generatedImage && <p className="text-slate-400">Loading...</p>}
-                    {generatedImage && <img src={generatedImage} className="max-w-full max-h-96 rounded-lg object-contain" alt="Generated by AI" />}
+                        <div>
+                            <h4 className="text-lg font-semibold text-slate-200 mb-1">Gunakan Akun Gemini Pro</h4>
+                            <p className="text-slate-400 text-sm leading-relaxed">Pastikan Anda telah login menggunakan akun Gemini Pro untuk mengakses fitur pembuatan gambar tingkat lanjut.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-orange-500/30 transition-colors">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-lg border border-slate-500">
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-slate-200 mb-1">Pilih Menu "Create Image"</h4>
+                            <p className="text-slate-400 text-sm leading-relaxed">Di dalam platform Gemini Pro, navigasikan ke menu atau opsi "Create Image" untuk memulai sesi.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-orange-500/30 transition-colors">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-lg border border-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-slate-200 mb-1">Aktifkan Model "Nano Banana Pro"</h4>
+                            <p className="text-slate-400 text-sm leading-relaxed">Pilih model "Nano Banana Pro" sebagai engine generasi gambar untuk hasil yang optimal.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

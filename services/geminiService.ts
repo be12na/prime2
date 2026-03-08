@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // Mengambil kunci API dari sesi browser (prioritas) atau lingkungan
 const getAI = () => {
@@ -94,7 +94,6 @@ export const generatePhotoVideoPrompt = async (formData: any, activeMode: 'manua
 
     if (activeMode === 'ai' && promptData.imageBase64) {
         // Ganti data base64 yang besar dengan placeholder untuk menghindari error token limit.
-        // Data gambar asli akan digunakan nanti saat memanggil `generateImageWithPrompt`.
         promptData.imageBase64 = `[Gambar produk telah diunggah oleh pengguna, ukuran: ${Math.round(promptData.imageBase64.length * 3/4 / 1024)} KB]`;
         delete promptData.mimeType;
     }
@@ -163,95 +162,6 @@ Berikan jawaban dalam format JSON Markdown yang valid seperti ini, tanpa teks pe
             photo: `Gagal mem-parsing hasil dari AI: ${errorMessage}`, 
             video: `Gagal mem-parsing hasil dari AI: ${errorMessage}`
         };
-    }
-};
-
-export const generateImageWithPrompt = async (prompt: string, aspectRatio: string, imageBase64?: string, mimeType?: string): Promise<string> => {
-    try {
-        const { ai } = getAI();
-        const parts: Part[] = [{ text: prompt }];
-
-        if (imageBase64 && mimeType) {
-            parts.unshift({
-                inlineData: {
-                    data: imageBase64,
-                    mimeType: mimeType,
-                },
-            });
-        }
-        
-        // Gunakan gemini-2.5-flash-image untuk pembuatan gambar yang cepat
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: { parts: parts },
-            config: {
-                imageConfig: {
-                    aspectRatio: aspectRatio as any,
-                },
-            },
-        });
-        
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return part.inlineData.data;
-            }
-        }
-        throw new Error("No image data in response from Gemini API");
-
-    } catch (error) {
-        console.error("Gemini image generation failed:", error);
-         if (error instanceof Error) {
-            return `Error: Terjadi masalah saat membuat gambar. Detail: ${error.message}`;
-        }
-        return "Error: Gagal menghasilkan gambar.";
-    }
-};
-
-export const generateVideoWithPrompt = async (prompt: string, aspectRatio: string): Promise<string> => {
-    try {
-        const { ai, apiKey } = getAI();
-        
-        // Gunakan model Veo fast untuk video
-        let operation = await ai.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
-            prompt: prompt,
-            config: {
-                numberOfVideos: 1,
-                aspectRatio: aspectRatio as "16:9" | "9:16",
-                resolution: '720p',
-            }
-        });
-
-        while (!operation.done) {
-            await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
-            operation = await ai.operations.getVideosOperation({ operation: operation });
-        }
-
-        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-        if (!downloadLink) {
-            throw new Error("No video download link found in the operation response.");
-        }
-
-        const response = await fetch(`${downloadLink}&key=${apiKey}`);
-        if (!response.ok) {
-            throw new Error(`Failed to download video file: ${response.statusText}`);
-        }
-        
-        const videoBlob = await response.blob();
-        const videoUrl = URL.createObjectURL(videoBlob);
-        
-        return videoUrl;
-
-    } catch (error) {
-        console.error("Gemini video generation failed:", error);
-        if (error instanceof Error) {
-            // Include a note about supported aspect ratios
-            if (error.message.includes('aspectRatio')) {
-                 return `Error: Terjadi masalah saat membuat video. Detail: ${error.message}. Catatan: Model video saat ini mungkin hanya mendukung aspek rasio 16:9 dan 9:16.`;
-            }
-            return `Error: Terjadi masalah saat membuat video. Detail: ${error.message}`;
-        }
-        return "Error: Gagal menghasilkan video.";
     }
 };
 
