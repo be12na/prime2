@@ -63,9 +63,13 @@ const GuideStudio: React.FC = () => {
         
         try {
             const ai = new GoogleGenAI({ apiKey: key });
-            // Test call to validate key and infer quota status from response headers (if available) or success
+            
+            // Mencoba model yang paling stabil dan umum tersedia (gemini-1.5-flash)
+            // Model experimental (gemini-2.0-flash-exp) seringkali restricted atau memiliki endpoint berbeda
+            const modelName = 'gemini-1.5-flash'; 
+            
             await ai.models.generateContent({
-                model: 'gemini-2.0-flash-exp',
+                model: modelName,
                 contents: 'Test'
             });
 
@@ -73,17 +77,34 @@ const GuideStudio: React.FC = () => {
             // We can't strictly detect "Free vs Paid" via simple API call without hitting limits or metadata.
             // So we rely on the manual check for the visual part, but the API check confirms it's active.
             setQuotaCheckStatus('valid');
-            setApiKeyStatus({ message: 'API Valid! Silakan verifikasi jenis quota Anda di bawah.', type: 'success' });
+            setApiKeyStatus({ message: `API Valid! Terhubung ke model ${modelName}.`, type: 'success' });
 
         } catch (error: any) {
             console.error("API Validation failed", error);
             setQuotaCheckStatus('invalid');
-            if (error.message?.includes('429')) {
+            
+            let errorMessage = error.message || 'Terjadi kesalahan';
+            
+            if (errorMessage.includes('429')) {
                 setApiKeyStatus({ message: 'Validasi Gagal: Quota Terlampaui (429). Cek limit Free Tier Anda.', type: 'error' });
-            } else if (error.message?.includes('403') || error.message?.includes('API key not valid')) {
+            } else if (errorMessage.includes('403') || errorMessage.includes('API key not valid')) {
                 setApiKeyStatus({ message: 'Validasi Gagal: Kunci API tidak valid.', type: 'error' });
+            } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+                 // Fallback check if 1.5-flash is not found (rare but possible)
+                 try {
+                    const ai = new GoogleGenAI({ apiKey: key });
+                    await ai.models.generateContent({
+                        model: 'gemini-pro', // Fallback to legacy stable
+                        contents: 'Test'
+                    });
+                    setQuotaCheckStatus('valid');
+                    setApiKeyStatus({ message: 'API Valid! (Fallback ke gemini-pro)', type: 'success' });
+                    return;
+                 } catch (fallbackError) {
+                    setApiKeyStatus({ message: `Validasi Gagal: Model tidak ditemukan (404). Pastikan API Key memiliki akses ke Gemini API.`, type: 'error' });
+                 }
             } else {
-                setApiKeyStatus({ message: `Validasi Gagal: ${error.message || 'Terjadi kesalahan'}`, type: 'error' });
+                setApiKeyStatus({ message: `Validasi Gagal: ${errorMessage}`, type: 'error' });
             }
         }
     };
@@ -285,6 +306,161 @@ const GuideStudio: React.FC = () => {
                      <div className="pt-6 flex items-center justify-between">
                          <button onClick={handleSave} className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-lg hover:shadow-orange-500/20 transition-all transform hover:-translate-y-0.5">Simpan Profil</button>
                          {status && <span className="text-xs font-medium text-green-400 animate-pulse">{status}</span>}
+                    </div>
+                </div>
+            </div>
+
+            {/* Developer Documentation for Alternative APIs */}
+            <div className="mt-12 pt-8 border-t border-slate-700/50">
+                <div className="bg-slate-900/50 backdrop-blur-lg border border-indigo-500/30 rounded-xl p-6 md:p-8 space-y-8 shadow-2xl shadow-indigo-500/10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-500/20 pb-6">
+                        <div>
+                            <h3 className="text-2xl font-bold text-indigo-400 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                                Integrasi API Alternatif (Developer Guide)
+                            </h3>
+                            <p className="mt-2 text-slate-400 text-sm">Panduan komprehensif untuk memperluas kapabilitas PRIME dengan penyedia AI lain (OpenAI, Grok, Anthropic, dll).</p>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 self-start md:self-center">ADVANCED</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-sm text-slate-300">
+                        {/* 1. Supported APIs */}
+                        <section className="space-y-4">
+                            <h4 className="text-lg font-bold text-white border-l-4 border-indigo-500 pl-3">1. Dukungan API Alternatif</h4>
+                            <p>Saat ini PRIME dioptimalkan untuk Google Gemini (Free Tier). Namun, arsitektur sistem mendukung integrasi dengan provider lain yang kompatibel dengan standar REST API atau SDK modern:</p>
+                            <ul className="list-disc list-inside space-y-2 text-slate-400 ml-2">
+                                <li><strong className="text-emerald-400">OpenAI (GPT-4/3.5):</strong> Standar industri, performa tinggi, berbayar.</li>
+                                <li><strong className="text-white">xAI (Grok):</strong> Alternatif dengan akses real-time (via X), kompatibel dengan OpenAI SDK.</li>
+                                <li><strong className="text-amber-400">Anthropic (Claude):</strong> Unggul dalam penulisan kreatif dan coding, memerlukan SDK terpisah.</li>
+                                <li><strong className="text-sky-400">Mistral AI:</strong> Opsi open-weight yang efisien dan cost-effective.</li>
+                            </ul>
+                        </section>
+
+                        {/* 2. Configuration Steps */}
+                        <section className="space-y-4">
+                            <h4 className="text-lg font-bold text-white border-l-4 border-indigo-500 pl-3">2. Konfigurasi & Autentikasi</h4>
+                            <div className="bg-slate-950 p-4 rounded-lg font-mono text-xs border border-slate-800 overflow-x-auto">
+                                <p className="text-slate-500 mb-2"># Contoh Header Request (OpenAI/Grok)</p>
+                                <p><span className="text-purple-400">Authorization:</span> Bearer YOUR_API_KEY</p>
+                                <p><span className="text-purple-400">Content-Type:</span> application/json</p>
+                                <br/>
+                                <p className="text-slate-500 mb-2"># Endpoints</p>
+                                <p>OpenAI: <span className="text-green-400">https://api.openai.com/v1/chat/completions</span></p>
+                                <p>Grok: <span className="text-white">https://api.grok.x.ai/v1/chat/completions</span></p>
+                                <p>Mistral: <span className="text-sky-400">https://api.mistral.ai/v1/chat/completions</span></p>
+                            </div>
+                            <p className="text-xs text-slate-400 italic">*Rate Limit berbeda untuk setiap provider. Cek dokumentasi resmi masing-masing layanan.</p>
+                        </section>
+
+                        {/* 3. Code Implementation */}
+                        <section className="space-y-4 lg:col-span-2">
+                            <h4 className="text-lg font-bold text-white border-l-4 border-indigo-500 pl-3">3. Implementasi Kode (Adapter Pattern)</h4>
+                            <p>Untuk mendukung multi-provider, disarankan menggunakan pola Adapter pada file <code>services/geminiService.ts</code> (atau rename menjadi <code>aiService.ts</code>):</p>
+                            <div className="bg-slate-950 p-4 rounded-lg font-mono text-xs border border-slate-800 overflow-x-auto">
+<pre>{`// Interface Generik untuk AI Provider
+interface AIProvider {
+    generateContent(prompt: string): Promise<string>;
+}
+
+// Implementasi OpenAI / Grok (Kompatibel)
+class OpenAIProvider implements AIProvider {
+    private apiKey: string;
+    private baseURL: string; // Bisa diganti untuk Grok/Mistral
+
+    constructor(apiKey: string, baseURL = 'https://api.openai.com/v1') {
+        this.apiKey = apiKey;
+        this.baseURL = baseURL;
+    }
+
+    async generateContent(prompt: string): Promise<string> {
+        const response = await fetch(\`\${this.baseURL}/chat/completions\`, {
+            method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${this.apiKey}\`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gpt-4-turbo', // Sesuaikan model
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+
+        if (!response.ok) throw new Error(\`API Error: \${response.status}\`);
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+}`}</pre>
+                            </div>
+                        </section>
+
+                        {/* 4. Compatibility Matrix */}
+                        <section className="space-y-4">
+                            <h4 className="text-lg font-bold text-white border-l-4 border-indigo-500 pl-3">4. Matriks Kompatibilitas Fitur</h4>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-slate-700 text-slate-400">
+                                            <th className="py-2">Fitur</th>
+                                            <th className="py-2">Gemini (Current)</th>
+                                            <th className="py-2">OpenAI/Grok</th>
+                                            <th className="py-2">Claude</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-slate-300">
+                                        <tr className="border-b border-slate-800">
+                                            <td className="py-2 font-medium">Text Gen</td>
+                                            <td className="text-green-400">Supported</td>
+                                            <td className="text-green-400">Supported</td>
+                                            <td className="text-green-400">Supported</td>
+                                        </tr>
+                                        <tr className="border-b border-slate-800">
+                                            <td className="py-2 font-medium">Vision Analysis</td>
+                                            <td className="text-green-400">Supported</td>
+                                            <td className="text-green-400">GPT-4V Only</td>
+                                            <td className="text-yellow-400">Limited</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="py-2 font-medium">JSON Mode</td>
+                                            <td className="text-green-400">Native</td>
+                                            <td className="text-green-400">Native</td>
+                                            <td className="text-yellow-400">Prompt Eng.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        {/* 5. Migration, Testing & Troubleshooting */}
+                        <section className="space-y-4">
+                            <h4 className="text-lg font-bold text-white border-l-4 border-indigo-500 pl-3">5. Migrasi, Testing & Troubleshooting</h4>
+                            <div className="space-y-3">
+                                <div>
+                                    <strong className="text-slate-200 block mb-1">Panduan Migrasi:</strong>
+                                    <ol className="list-decimal list-inside space-y-1 text-slate-400 ml-1">
+                                        <li>Backup file <code>geminiService.ts</code>.</li>
+                                        <li>Buat file adapter baru sesuai contoh di poin 3.</li>
+                                        <li>Ganti import di komponen React untuk menggunakan adapter baru.</li>
+                                    </ol>
+                                </div>
+                                <div className="mt-2">
+                                     <strong className="text-slate-200 block mb-1">Testing Requirements:</strong>
+                                     <ul className="list-disc list-inside space-y-1 text-slate-400 ml-1">
+                                        <li>Verifikasi format output JSON/Markdown konsisten antar provider.</li>
+                                        <li>Uji penanganan error (simulasikan putus koneksi/invalid key).</li>
+                                        <li>Pastikan token usage tidak melebihi budget (jika berbayar).</li>
+                                     </ul>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-800">
+                                    <strong className="text-slate-200 block mb-1">Troubleshooting Umum:</strong>
+                                    <ul className="list-disc list-inside space-y-1 text-slate-400 ml-1">
+                                        <li><span className="text-red-400">Error 401:</span> Kunci API salah atau kadaluarsa.</li>
+                                        <li><span className="text-red-400">Error 429:</span> Rate limit tercapai. Implementasikan <em>exponential backoff</em>.</li>
+                                        <li><span className="text-red-400">CORS Error:</span> Gunakan proxy server jika API memblokir request browser.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>

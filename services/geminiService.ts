@@ -149,8 +149,8 @@ Berikan jawaban dalam format JSON Markdown yang valid seperti ini, tanpa teks pe
 }
 \`\`\`
 `;
-    // Gunakan gemini-3-flash-preview untuk respons teks yang cepat
-    const responseText = await generateContent('gemini-3-flash-preview', prompt);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    const responseText = await generateContent('gemini-1.5-flash', prompt);
     try {
         const jsonString = extractJson(responseText);
         const result = JSON.parse(jsonString);
@@ -196,8 +196,8 @@ Rancang sebuah "Paket Iklan TikTok" yang lengkap.
 
 Gunakan format Markdown dengan heading (##) untuk setiap bagian. Jaga agar bahasa tetap natural dan sesuai dengan platform (e-commerce atau TikTok).
 `;
-    // Gunakan gemini-3-flash-preview
-    return await generateContent('gemini-3-flash-preview', prompt);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    return await generateContent('gemini-1.5-flash', prompt);
 };
 
 
@@ -240,8 +240,8 @@ Berikan jawaban dalam format JSON Markdown yang valid. Pastikan JSON bisa di-par
 }
 \`\`\`
 `;
-    // Gunakan gemini-3-flash-preview
-    const responseText = await generateContent('gemini-3-flash-preview', prompt);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    const responseText = await generateContent('gemini-1.5-flash', prompt);
     try {
         const jsonString = extractJson(responseText);
         // Test parsing before returning
@@ -261,8 +261,8 @@ Anda adalah seorang motivator dan mental coach. Seseorang akan melakukan live st
 Alasan mereka: "${reason}".
 Berikan mereka sebuah "pep talk" singkat (2-3 paragraf) yang membangkitkan semangat, memberikan perspektif positif, dan meyakinkan mereka bahwa mereka bisa melakukannya. Gunakan bahasa yang hangat dan mendukung.
 `;
-    // Gunakan gemini-3-flash-preview
-    return await generateContent('gemini-3-flash-preview', prompt);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    return await generateContent('gemini-1.5-flash', prompt);
 };
 
 export const generateSocialPost = async (formData: any, useSearch: boolean): Promise<string> => {
@@ -288,8 +288,8 @@ ${JSON.stringify(formData, null, 2)}
 
 Gunakan format Markdown dengan heading (##) untuk setiap bagian.
 `;
-    // Gunakan gemini-3-flash-preview
-    return await generateContent('gemini-3-flash-preview', prompt, useSearch);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    return await generateContent('gemini-1.5-flash', prompt, useSearch);
 };
 
 export const analyzePerformance = async (formData: any): Promise<string> => {
@@ -327,6 +327,6 @@ Berikan 3-5 poin rekomendasi konkret yang bisa diterapkan pada konten berikutnya
 
 Gunakan format Markdown dan berikan analisis yang tajam dan membangun.
 `;
-    // Gunakan gemini-3-flash-preview
-    return await generateContent('gemini-3-flash-preview', prompt);
+    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
+    return await generateContent('gemini-1.5-flash', prompt);
 };
