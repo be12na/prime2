@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { POST_OPTIONS } from '../../constants.ts';
 import { generateSocialPost } from '../../services/geminiService.ts';
 import { savePrompt } from '../../services/promptHistoryService.ts';
+import GeminiErrorNotice from '../GeminiErrorNotice.tsx';
 import Markdown from 'react-markdown';
 
 type PostMode = 'product' | 'creator' | 'affiliate' | 'literacy';
@@ -208,7 +209,7 @@ const PostStudio: React.FC = () => {
                   ))}
                   {!isLoading && parsedOutput.length === 0 && (
                       <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                          {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Paket konten Anda (ide, skrip, caption) akan muncul di sini.</p>}
+                          {errorMessage ? <GeminiErrorNotice message={errorMessage} /> : <p>Paket konten Anda (ide, skrip, caption) akan muncul di sini.</p>}
                       </div>
                   )}
               </div>

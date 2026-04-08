@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { analyzePerformance } from '../../services/geminiService.ts';
+import GeminiErrorNotice from '../GeminiErrorNotice.tsx';
 import Markdown from 'react-markdown';
 
 interface ParsedOutput {
@@ -150,7 +151,7 @@ const AnalyticStudio: React.FC = () => {
                 ))}
                 {!isLoading && parsedOutput.length === 0 && (
                     <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                        {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Hasil analisis dan rekomendasi akan muncul di sini.</p>}
+                        {errorMessage ? <GeminiErrorNotice message={errorMessage} /> : <p>Hasil analisis dan rekomendasi akan muncul di sini.</p>}
                     </div>
                 )}
             </div>

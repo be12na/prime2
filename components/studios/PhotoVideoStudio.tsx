@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { PHOTO_VIDEO_MANUAL_OPTIONS as OPTIONS } from '../../constants.ts';
 import { generatePhotoVideoPrompt } from '../../services/geminiService.ts';
 import { savePrompt } from '../../services/promptHistoryService.ts';
+import GeminiErrorNotice from '../GeminiErrorNotice.tsx';
 
 type FormState = {
     concept: string;
@@ -578,7 +579,7 @@ const PhotoVideoStudio: React.FC = () => {
                 </div>
             </div>
 
-             <div id="prompt-output-image" className="relative bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-xl p-4 sm:p-6 shadow-2xl shadow-black/30 min-h-[300px] flex flex-col">
+            <div id="prompt-output-image" className="relative bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-xl p-4 sm:p-6 shadow-2xl shadow-black/30 min-h-[300px] flex flex-col">
                 <h3 className="text-lg font-semibold text-slate-100 mb-4">Prompt Foto</h3>
                 <div className="absolute top-4 right-4 flex items-center gap-2">
                     <button onClick={() => handleSavePrompt('Foto', photoPrompt)} title="Simpan Prompt" className="p-2 text-slate-400 hover:text-orange-400 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-all duration-200" disabled={!photoPrompt || savedPrompts['Foto']}>
@@ -590,7 +591,11 @@ const PhotoVideoStudio: React.FC = () => {
                 </div>
                 <div className="flex-grow flex items-center justify-center">
                     {isLoading && <p>Generating...</p>}
-                    <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">{photoPrompt || 'Hasil prompt foto akan muncul di sini...'}</p>
+                    {photoPrompt.startsWith('Error:') ? (
+                        <GeminiErrorNotice message={photoPrompt} />
+                    ) : (
+                        <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">{photoPrompt || 'Hasil prompt foto akan muncul di sini...'}</p>
+                    )}
                 </div>
             </div>
             
@@ -606,7 +611,11 @@ const PhotoVideoStudio: React.FC = () => {
                 </div>
                 <div className="flex-grow flex items-center justify-center">
                     {isLoading && <p>Generating...</p>}
-                    <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">{videoPrompt || 'Hasil prompt video akan muncul di sini...'}</p>
+                    {videoPrompt.startsWith('Error:') ? (
+                        <GeminiErrorNotice message={videoPrompt} />
+                    ) : (
+                        <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">{videoPrompt || 'Hasil prompt video akan muncul di sini...'}</p>
+                    )}
                 </div>
             </div>
           </div>

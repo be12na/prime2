@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { LAUNCH_OPTIONS as OPTIONS } from '../../constants.ts';
 import { generateLaunchContent } from '../../services/geminiService.ts';
 import { savePrompt } from '../../services/promptHistoryService.ts';
+import GeminiErrorNotice from '../GeminiErrorNotice.tsx';
 import Markdown from 'react-markdown';
 
 interface ParsedOutput {
@@ -288,7 +289,7 @@ const LaunchStudio: React.FC = () => {
                     ))}
                    {!isLoading && parsedOutput.length === 0 && (
                         <div className="text-center text-slate-400 p-8 bg-slate-800/50 rounded-xl border border-slate-700">
-                            {errorMessage ? <p className="text-red-400">{errorMessage}</p> : <p>Hasil copywriting akan muncul di sini setelah Anda menekan tombol generate.</p>}
+                            {errorMessage ? <GeminiErrorNotice message={errorMessage} /> : <p>Hasil copywriting akan muncul di sini setelah Anda menekan tombol generate.</p>}
                         </div>
                    )}
                 </div>
