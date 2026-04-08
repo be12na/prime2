@@ -25,3 +25,5 @@ export interface SavedPrompt {
     content: string;
     timestamp: number;
 }
+
+export type GeminiModelProfile = 'api-default' | 'flash' | 'pro' | 'ultra';

@@ -1,6 +1,10 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+const API_MODEL_STORAGE_KEY = 'geminiApiModel';
+const DEFAULT_TEXT_MODEL = 'gemini-2.5-flash';
+const FALLBACK_TEXT_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+
 // Mengambil kunci API dari sesi browser (prioritas) atau lingkungan
 const getAI = () => {
     const userApiKey = sessionStorage.getItem('geminiApiKey');
@@ -16,6 +20,20 @@ const getAI = () => {
         throw new Error("Kunci API Gemini tidak diatur. Harap masukkan kunci Anda di menu 'Panduan & Pengaturan'.");
     }
     return { ai: new GoogleGenAI({ apiKey }), apiKey };
+};
+
+const getConfiguredApiModel = (): string | undefined => {
+    const configured = sessionStorage.getItem(API_MODEL_STORAGE_KEY)?.trim();
+    return configured || undefined;
+};
+
+const getModelCandidates = (preferredModel?: string): string[] => {
+    const selectedModel = preferredModel?.trim() || getConfiguredApiModel();
+    const candidates = selectedModel
+        ? [selectedModel, ...FALLBACK_TEXT_MODELS]
+        : [DEFAULT_TEXT_MODEL, ...FALLBACK_TEXT_MODELS];
+
+    return Array.from(new Set(candidates.filter(Boolean)));
 };
 
 /**
@@ -49,36 +67,49 @@ const extractJson = (text: string): string => {
 };
 
 
-const generateContent = async (model: string, prompt: string, useSearch: boolean = false): Promise<string> => {
+const generateContent = async (preferredModel: string | undefined, prompt: string, useSearch: boolean = false): Promise<string> => {
     try {
         const { ai } = getAI();
         const config = useSearch ? { tools: [{ googleSearch: {} }] } : {};
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config
-        });
-        
-        let text = response.text;
 
-        if (!text && response.candidates?.[0]?.content?.parts) {
-            text = response.candidates[0].content.parts.map(p => p.text).join('');
-        }
+        let lastError: unknown = null;
+        for (const model of getModelCandidates(preferredModel)) {
+            try {
+                const response = await ai.models.generateContent({
+                    model,
+                    contents: prompt,
+                    config
+                });
 
-        if (useSearch && response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-            const citations = response.candidates[0].groundingMetadata.groundingChunks
-                .map((chunk: any) => chunk.web?.uri)
-                .filter(Boolean);
-            if (citations.length > 0) {
-                text = (text || '') + `\n\n**Sumber:**\n${citations.map((c: string) => `- ${c}`).join('\n')}`;
+                let text = response.text;
+
+                if (!text && response.candidates?.[0]?.content?.parts) {
+                    text = response.candidates[0].content.parts.map(p => p.text).join('');
+                }
+
+                if (useSearch && response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+                    const citations = response.candidates[0].groundingMetadata.groundingChunks
+                        .map((chunk: any) => chunk.web?.uri)
+                        .filter(Boolean);
+                    if (citations.length > 0) {
+                        text = (text || '') + `\n\n**Sumber:**\n${citations.map((c: string) => `- ${c}`).join('\n')}`;
+                    }
+                }
+
+                if (text) {
+                    return text;
+                }
+
+                throw new Error('No text response from Gemini API');
+            } catch (modelError) {
+                lastError = modelError;
             }
         }
 
-        if (text) {
-            return text;
+        if (lastError instanceof Error) {
+            throw lastError;
         }
-
-        throw new Error("No text response from Gemini API");
+        throw new Error('No text response from Gemini API');
 
     } catch (error) {
         console.error("Gemini API call failed:", error);
@@ -149,8 +180,7 @@ Berikan jawaban dalam format JSON Markdown yang valid seperti ini, tanpa teks pe
 }
 \`\`\`
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    const responseText = await generateContent('gemini-1.5-flash', prompt);
+    const responseText = await generateContent(undefined, prompt);
     try {
         const jsonString = extractJson(responseText);
         const result = JSON.parse(jsonString);
@@ -196,8 +226,7 @@ Rancang sebuah "Paket Iklan TikTok" yang lengkap.
 
 Gunakan format Markdown dengan heading (##) untuk setiap bagian. Jaga agar bahasa tetap natural dan sesuai dengan platform (e-commerce atau TikTok).
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    return await generateContent('gemini-1.5-flash', prompt);
+    return await generateContent(undefined, prompt);
 };
 
 
@@ -240,8 +269,7 @@ Berikan jawaban dalam format JSON Markdown yang valid. Pastikan JSON bisa di-par
 }
 \`\`\`
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    const responseText = await generateContent('gemini-1.5-flash', prompt);
+    const responseText = await generateContent(undefined, prompt);
     try {
         const jsonString = extractJson(responseText);
         // Test parsing before returning
@@ -261,8 +289,7 @@ Anda adalah seorang motivator dan mental coach. Seseorang akan melakukan live st
 Alasan mereka: "${reason}".
 Berikan mereka sebuah "pep talk" singkat (2-3 paragraf) yang membangkitkan semangat, memberikan perspektif positif, dan meyakinkan mereka bahwa mereka bisa melakukannya. Gunakan bahasa yang hangat dan mendukung.
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    return await generateContent('gemini-1.5-flash', prompt);
+    return await generateContent(undefined, prompt);
 };
 
 export const generateSocialPost = async (formData: any, useSearch: boolean): Promise<string> => {
@@ -288,8 +315,7 @@ ${JSON.stringify(formData, null, 2)}
 
 Gunakan format Markdown dengan heading (##) untuk setiap bagian.
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    return await generateContent('gemini-1.5-flash', prompt, useSearch);
+    return await generateContent(undefined, prompt, useSearch);
 };
 
 export const analyzePerformance = async (formData: any): Promise<string> => {
@@ -327,6 +353,5 @@ Berikan 3-5 poin rekomendasi konkret yang bisa diterapkan pada konten berikutnya
 
 Gunakan format Markdown dan berikan analisis yang tajam dan membangun.
 `;
-    // Gunakan gemini-1.5-flash untuk respons teks yang cepat dan stabil
-    return await generateContent('gemini-1.5-flash', prompt);
+    return await generateContent(undefined, prompt);
 };

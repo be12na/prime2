@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { BRAND_ROLES } from '../../constants.ts';
+import { BRAND_ROLES, GEMINI_API_MODEL_PRESETS } from '../../constants.ts';
 import { GoogleGenAI } from "@google/genai";
 
 type BrandRole = 'produk' | 'kreator' | 'afiliasi';
+const CUSTOM_API_MODEL_VALUE = '__custom_model__';
 
 const GuideStudio: React.FC = () => {
     const [activeRole, setActiveRole] = useState<BrandRole>('produk');
     const [apiKey, setApiKey] = useState('');
+    const [apiModelSelection, setApiModelSelection] = useState<string>(GEMINI_API_MODEL_PRESETS[0].value);
+    const [customApiModel, setCustomApiModel] = useState('');
     const [apiKeyStatus, setApiKeyStatus] = useState<{ message: string; type: 'success' | 'info' | 'error' | 'warning' }>({ message: '', type: 'info' });
     const [quotaCheckStatus, setQuotaCheckStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid' | 'warning'>('idle');
 
@@ -22,6 +25,7 @@ const GuideStudio: React.FC = () => {
         const savedProfile = localStorage.getItem('brandProfile');
         const savedRole = localStorage.getItem('brandRole');
         const savedApiKey = sessionStorage.getItem('geminiApiKey');
+        const savedApiModel = (sessionStorage.getItem('geminiApiModel') || '').trim();
 
         if (savedProfile) {
             try {
@@ -37,14 +41,34 @@ const GuideStudio: React.FC = () => {
         if (savedApiKey) {
             setApiKey(savedApiKey);
         }
+        if (savedApiModel) {
+            const existsInPreset = GEMINI_API_MODEL_PRESETS.some((item) => item.value === savedApiModel);
+            if (existsInPreset) {
+                setApiModelSelection(savedApiModel);
+                setCustomApiModel('');
+            } else {
+                setApiModelSelection(CUSTOM_API_MODEL_VALUE);
+                setCustomApiModel(savedApiModel);
+            }
+        }
     }, []);
 
+    const selectedApiModel = (apiModelSelection === CUSTOM_API_MODEL_VALUE ? customApiModel : apiModelSelection).trim();
+
     const handleSaveApiKey = () => {
-        if (apiKey.trim()) {
-            sessionStorage.setItem('geminiApiKey', apiKey.trim());
+        const trimmedApiKey = apiKey.trim();
+        const trimmedModel = selectedApiModel;
+
+        if (trimmedApiKey) {
+            sessionStorage.setItem('geminiApiKey', trimmedApiKey);
+            if (trimmedModel) {
+                sessionStorage.setItem('geminiApiModel', trimmedModel);
+            } else {
+                sessionStorage.removeItem('geminiApiModel');
+            }
             setApiKeyStatus({ message: 'Kunci API berhasil disimpan untuk sesi ini!', type: 'success' });
             // Auto-trigger validation logic after save
-            validateApiKey(apiKey.trim());
+            validateApiKey(trimmedApiKey, trimmedModel || undefined);
         } else {
             sessionStorage.removeItem('geminiApiKey');
             setApiKeyStatus({ message: 'Kunci API yang tersimpan telah dihapus.', type: 'info' });
@@ -57,16 +81,14 @@ const GuideStudio: React.FC = () => {
         }, 4000);
     };
 
-    const validateApiKey = async (key: string) => {
+    const validateApiKey = async (key: string, model?: string) => {
         setQuotaCheckStatus('checking');
         setApiKeyStatus({ message: 'Memvalidasi kunci API dan jenis quota...', type: 'info' });
         
         try {
             const ai = new GoogleGenAI({ apiKey: key });
             
-            // Mencoba model yang paling stabil dan umum tersedia (gemini-1.5-flash)
-            // Model experimental (gemini-2.0-flash-exp) seringkali restricted atau memiliki endpoint berbeda
-            const modelName = 'gemini-1.5-flash'; 
+            const modelName = model || 'gemini-2.5-flash';
             
             await ai.models.generateContent({
                 model: modelName,
@@ -146,6 +168,30 @@ const GuideStudio: React.FC = () => {
                             <p className="text-sm text-slate-400 mb-4">
                                 Masukkan Kunci API Google AI Studio Anda. Kunci disimpan aman di sesi browser.
                             </p>
+                            <div className="space-y-3 mb-4">
+                                <label htmlFor="api-model-select" className="block text-sm font-medium text-slate-300">Model API Gemini (Default Global)</label>
+                                <select
+                                    id="api-model-select"
+                                    value={apiModelSelection}
+                                    onChange={(e) => setApiModelSelection(e.target.value)}
+                                    className="block w-full bg-slate-700/50 border-slate-600 rounded-md shadow-sm py-2.5 px-4 text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition"
+                                >
+                                    {GEMINI_API_MODEL_PRESETS.map((model) => (
+                                        <option key={model.value} value={model.value}>{model.label}</option>
+                                    ))}
+                                    <option value={CUSTOM_API_MODEL_VALUE}>Custom model ID</option>
+                                </select>
+                                {apiModelSelection === CUSTOM_API_MODEL_VALUE && (
+                                    <input
+                                        type="text"
+                                        value={customApiModel}
+                                        onChange={(e) => setCustomApiModel(e.target.value)}
+                                        className="block w-full bg-slate-700/50 border-slate-600 rounded-md shadow-sm py-2.5 px-4 text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition"
+                                        placeholder="Contoh: gemini-3.1-flash-image-preview"
+                                    />
+                                )}
+                                <p className="text-xs text-slate-500">Pilih preset model Gemini terbaru agar tidak perlu isi manual.</p>
+                            </div>
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                     type="password"
